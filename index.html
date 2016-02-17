@@ -1,0 +1,88 @@
+<!doctype>
+<html>
+<head>
+    <title>SGML Tester</title>
+</head>
+<body>
+    <form id="form">
+        <textarea id="input"></textarea>
+        <button>Analyze</button>
+    </form>
+    <div id="output">
+    </div>
+
+<script>
+function isSelfClosingTag(tagName) {
+    return tagName.match(/area|base|br|col|embed|hr|img|input|keygen|link|menuitem|meta|param|source|track|wbr|script/i);
+}
+
+function $ (selector) {
+    var matches = document.querySelectorAll(selector);
+    if(matches.length === 1){
+        return matches[0];
+    }
+    return matches;
+}
+
+function output (text) {
+    $('#output').innerText = text;
+}
+
+$('#form').onsubmit = function () {
+    var input = x$('input').val();
+    var tags = [];
+    var openTags = [];
+    var error = false;
+    var indent = 0;
+    var previousIndent = 0;
+    var hasNetOpen = false;
+    input.split('\n').forEach(function (line, i) {
+        indent = line.match(/^\s+/);
+        (line.match(/<[^>]*[^/]>/g) || []).forEach(function (tag) {
+            var matches = tag.match(/<\/?([a-z0-9]+)/i);
+            if (matches) {
+                tags.push({tag: tag, name: matches[1], line: i+1, closing: tag[1] == '/'});
+            }
+        });
+        previousIndent = indent;
+    });
+    if (tags.length == 0) {
+        output('No tags found.');
+        return;
+    }
+    for (var i = 0; i < tags.length; i++) {
+        var tag = tags[i];
+        if (tag.closing) {
+            var closingTag = tag;
+            if (isSelfClosingTag(closingTag.name)) {
+                continue;
+            }
+            if (openTags.length == 0) {
+                output('Closing tag ' + closingTag.tag + ' on line ' + closingTag.line + ' does not have corresponding open tag.');
+                return;
+            }
+            var openTag = openTags[openTags.length - 1];
+            if (closingTag.name != openTag.name) {
+                output('Closing tag ' + closingTag.tag + ' on line ' + closingTag.line + ' does not match open tag ' + openTag.tag + ' on line ' + openTag.line + '.');
+                return;
+            } else {
+                openTags.pop();
+            }
+        } else {
+            var openTag = tag;
+            if (isSelfClosingTag(openTag.name)) {
+                continue;
+            }
+            openTags.push(openTag);
+        }
+    }
+    if (openTags.length > 0) {
+        var openTag = openTags[openTags.length - 1];
+        output('Open tag ' + openTag.tag + ' on line ' + openTag.line + ' does not have a corresponding closing tag.');
+        return;
+    }
+    output('Success: No unclosed tags found.');
+});
+</script>
+</body>
+</html>
